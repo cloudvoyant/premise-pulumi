@@ -83,6 +83,7 @@ jobs:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           VERCEL_API_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          PREMISE_E2E_BYPASS_SECRET: ${{ secrets.PREMISE_E2E_BYPASS_SECRET }}
         run: npm run test:live
       - name: Save non-secret rollback evidence
         if: always()
