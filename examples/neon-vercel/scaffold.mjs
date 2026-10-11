@@ -167,7 +167,7 @@ project = "${required("GCP_PROJECT_ID")}"
 
 [profiles.dev.secrets.APP_MARKER]
 provider = "gcp"
-value = "app-marker"
+value = "premise-e2e-app-marker"
 
 [profiles.stage.secrets.APP_MARKER]
 provider = "gcp"
@@ -179,7 +179,7 @@ value = "premise-prod-app-marker"
 
 [profiles.preview.secrets.APP_MARKER]
 provider = "gcp"
-value = "app-marker"
+value = "premise-e2e-app-marker"
 `,
   );
   manifest.workspace.infra = {
