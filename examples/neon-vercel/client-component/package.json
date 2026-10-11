@@ -1,0 +1,12 @@
+{
+  "name": "client-owned-identity",
+  "private": true,
+  "main": "index.ts",
+  "dependencies": {
+    "@pulumi/pulumi": "3.200.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "@types/node": "22.18.0"
+  }
+}

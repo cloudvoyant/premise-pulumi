@@ -1,0 +1,94 @@
+name: Test templates and live deployment
+
+"on":
+  push:
+    branches-ignore: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: premise-pulumi-e2e-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@v4
+        with:
+          version: "2026.10.8"
+      - run: mise run test
+      - run: mise run lint
+      - run: mise run format:check
+
+  live:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: preview
+    env:
+      PREMISE_RC_VERSION: ${{ vars.PREMISE_RC_VERSION }}
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
+      NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+      NEON_PARENT_BRANCH_ID: ${{ vars.NEON_PARENT_BRANCH_ID }}
+      NEON_REGION_ID: ${{ vars.NEON_REGION_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+      PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Require a published compatible RC
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${PREMISE_RC_VERSION:?Set the verified published Premise RC release tag}"
+          [[ "$PREMISE_RC_VERSION" == v*-rc.* ]]
+      - name: Checkout the exact RC action
+        uses: actions/checkout@v6
+        with:
+          repository: cloudvoyant/premise
+          ref: ${{ vars.PREMISE_RC_VERSION }}
+          path: .actions/premise
+          persist-credentials: false
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v3
+      - name: Install the published RC binary with its matching action
+        uses: ./.actions/premise
+        with:
+          setup-only: true
+          release: none
+          install-premise: pre-built
+          premise-version: ${{ vars.PREMISE_RC_VERSION }}
+      - name: Exercise fnox application secrets
+        run: mise run e2e:secrets
+      - name: Exercise remote state and bound GCS artifacts
+        run: mise run e2e:gcs
+      - name: Install the live app harness
+        working-directory: examples/neon-vercel
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Provision, migrate, deploy and prove automatic rollback
+        working-directory: examples/neon-vercel
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          VERCEL_API_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npm run test:live
+      - name: Save non-secret rollback evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback-evidence
+          path: examples/neon-vercel/test-results/workspace/test-results/rollback.json
+          if-no-files-found: ignore
+          retention-days: 14

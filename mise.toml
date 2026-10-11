@@ -1,0 +1,24 @@
+[tools]
+go = "1.25"
+node = "22"
+bun = "1.4.2"
+pulumi = "3.200.0"
+fnox = "1.39.0"
+
+[tasks.test]
+run = "cd templates/gcs-bucket && go test ./..."
+
+[tasks.lint]
+run = "cd templates/gcs-bucket && go vet ./..."
+
+[tasks.format]
+run = "gofmt -w templates/gcs-bucket/*.go"
+
+[tasks."format:check"]
+run = 'test -z "$(gofmt -l templates/gcs-bucket/*.go)"'
+
+[tasks."e2e:gcs"]
+run = "python3 e2e/gcs.py"
+
+[tasks."e2e:secrets"]
+run = "python3 e2e/secrets.py"

@@ -1,0 +1,23 @@
+[tools]
+node = "22"
+
+[tasks.install]
+run = "npm install --ignore-scripts --no-audit --no-fund"
+
+[tasks.build]
+run = "npx --no-install tsc"
+
+[tasks.test]
+run = "npx --no-install tsc --noEmit"
+
+[tasks.lint]
+run = "npx --no-install tsc --noEmit"
+
+[tasks."lint:fix"]
+run = "npx --no-install tsc --noEmit"
+
+[tasks.format]
+run = "npx --yes prettier@3.6.2 --write '*.ts' '*.json'"
+
+[tasks."format:check"]
+run = "npx --yes prettier@3.6.2 --check '*.ts' '*.json'"
