@@ -71,6 +71,8 @@ jobs:
           release: none
           install-premise: pre-built
           premise-version: ${{ vars.PREMISE_RC_VERSION }}
+      - name: Verify permissions before creating live resources
+        run: python3 e2e/permissions.py
       - name: Exercise fnox application secrets
         run: mise run e2e:secrets
       - name: Exercise remote state and bound GCS artifacts
@@ -86,7 +88,9 @@ jobs:
           PREMISE_E2E_BYPASS_SECRET: ${{ secrets.PREMISE_E2E_BYPASS_SECRET }}
           PREMISE_ACTION_PATH: ${{ github.workspace }}/.actions/premise
           PREMISE_PULUMI_REGISTRY: ${{ github.workspace }}
-        run: mise exec go@1.25 node@22 pulumi@3.268.0 -- go test ./e2e -run '^TestPulumiLive$' -timeout 40m -count=1
+        run: |
+          test -f e2e/pulumi_test.go
+          mise exec go@1.25 node@22 pulumi@3.268.0 -- go test ./e2e -run '^TestPulumiLive$' -timeout 40m -count=1
       - name: Save non-secret rollback evidence
         if: always()
         uses: actions/upload-artifact@v4
