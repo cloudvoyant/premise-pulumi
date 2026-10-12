@@ -37,6 +37,8 @@ The scaffold reads non-secret project and backend IDs from the environment. It d
 
 ## Live tests
 
+This branch requires Premise `v0.5.0-rc.211` or a later release with the same infrastructure, deployment and secret interfaces. The matching Premise change is [PR #20](https://github.com/cloudvoyant/premise/pull/20); merge it before these templates.
+
 The hosted workflow requires `PREMISE_RC_VERSION` to identify a published Premise RC. It checks out that tag's action and installs that release's binary. Configure GCP workload identity and CI-only Neon/Vercel credentials before running it.
 
 | Test                                          | Required evidence                                                                                                              |
@@ -44,6 +46,21 @@ The hosted workflow requires `PREMISE_RC_VERSION` to identify a published Premis
 | `mise run e2e:secrets`                        | fnox/Mise resolves a real application secret into a private env file and a child process. Administration credentials stay out. |
 | `mise run e2e:gcs`                            | A generated program uploads a bound object, reuses remote state, reapplies and cleans up its bucket.                           |
 | `npm run test:live` in `examples/neon-vercel` | SQL records prove migration execution. HTTP and provider identities prove app rollout and automatic rollback.                  |
+
+Configure these GitHub repository values before a feature-branch push:
+
+| Setting                                                                   | GitHub storage | Purpose                                                                        |
+| ------------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------ |
+| `PREMISE_RC_VERSION`                                                      | Variable       | Exact verified RC tag; currently `v0.5.0-rc.211`.                              |
+| `GCP_PROJECT_ID`, `GCP_SERVICE_ACCOUNT`, `GCP_WORKLOAD_IDENTITY_PROVIDER` | Variables      | Workload identity for the dedicated GCP project.                               |
+| `PULUMI_BACKEND_URL`                                                      | Variable       | Existing GCS state backend.                                                    |
+| `NEON_PROJECT_ID`, `NEON_PARENT_BRANCH_ID`, `NEON_REGION_ID`              | Variables      | Existing dedicated Neon project and parent branch.                             |
+| `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID`                                     | Variables      | Existing dedicated Vercel project and team.                                    |
+| `NEON_API_KEY`, `VERCEL_TOKEN`                                            | CI secrets     | Provider administration; supplied only to the live deployment step.            |
+| `PULUMI_CONFIG_PASSPHRASE`                                                | CI secret      | State encryption; retain a private recovery copy.                              |
+| `PREMISE_E2E_BYPASS_SECRET`                                               | CI secret      | Automation access when the dedicated Vercel project has deployment protection. |
+
+Enable the GCP storage and Secret Manager APIs. Give workload identity access to the state bucket, test bucket creation and the dedicated `premise-e2e-app-marker` secret. The marker is an application value in Secret Manager, not a copied CI secret. Configure the GitHub `preview` environment to permit the test feature branches. Keep Vercel deployment protection enabled and create a project-scoped automation bypass for HTTP tests.
 
 The application test deploys A, migrates and deploys B, then deliberately fails a health check. Premise restores A automatically. The test queries Neon and the serving app to make sure that data survives. A separate fault exercises failed recovery.
 

@@ -12,24 +12,27 @@ export function createDatabase(
     parentId,
     name: `premise-${stack}`,
   });
-  const role = new neon.Role("db-role", {
-    projectId,
-    branchId: branch.id,
-    name: "premise_app",
-  });
-  const database = new neon.Database("db-database", {
-    projectId,
-    branchId: branch.id,
-    name: "premise_app",
-    ownerName: role.name,
-  });
   const endpoint = new neon.Endpoint("db-endpoint", {
     projectId,
     branchId: branch.id,
     type: "read_write",
     autoscalingLimitMinCu: 0.25,
     autoscalingLimitMaxCu: 0.25,
-    suspendTimeoutSeconds: 60,
+  });
+  const role = new neon.Role(
+    "db-role",
+    {
+      projectId,
+      branchId: branch.id,
+      name: "premise_app",
+    },
+    { dependsOn: endpoint },
+  );
+  const database = new neon.Database("db-database", {
+    projectId,
+    branchId: branch.id,
+    name: "premise_app",
+    ownerName: role.name,
   });
   const url = pulumi.secret(
     pulumi
