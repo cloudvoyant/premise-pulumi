@@ -48,7 +48,7 @@ There is no product setup script or `examples` directory in this registry.
 
 ## Live tests
 
-This branch requires Premise `v0.5.0-rc.221` or a later release with the same infrastructure, deployment and secret interfaces. The matching Premise change is [PR #20](https://github.com/cloudvoyant/premise/pull/20); merge it before these templates.
+This branch requires Premise `v0.5.0-rc.227` or a later release with the same infrastructure, deployment and secret interfaces. The matching Premise change is [PR #20](https://github.com/cloudvoyant/premise/pull/20); merge it before these templates.
 
 The hosted workflow requires `PREMISE_RC_VERSION` to identify a published Premise RC. It checks out that tag's action and installs that release's binary. The harness executes the action's published deployment-step scripts, including remote record restore and persistence. Configure GCP workload identity and CI-only Neon/Vercel credentials before running it.
 
@@ -62,7 +62,7 @@ Configure these GitHub repository values before a feature-branch push:
 
 | Setting                                                                   | GitHub storage | Purpose                                                                        |
 | ------------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------ |
-| `PREMISE_RC_VERSION`                                                      | Variable       | Exact verified RC tag; currently `v0.5.0-rc.221`.                              |
+| `PREMISE_RC_VERSION`                                                      | Variable       | Exact verified RC tag; currently `v0.5.0-rc.227`.                              |
 | `GCP_PROJECT_ID`, `GCP_SERVICE_ACCOUNT`, `GCP_WORKLOAD_IDENTITY_PROVIDER` | Variables      | Workload identity for the dedicated GCP project.                               |
 | `PULUMI_BACKEND_URL`                                                      | Variable       | Existing GCS state backend.                                                    |
 | `NEON_PROJECT_ID`, `NEON_PARENT_BRANCH_ID`, `NEON_REGION_ID`              | Variables      | Existing dedicated Neon project and parent branch.                             |
