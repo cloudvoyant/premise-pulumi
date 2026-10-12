@@ -36,6 +36,7 @@ jobs:
           mise run format:check
 
   live:
+    timeout-minutes: 45
     needs: verify
     runs-on: ubuntu-latest
     environment: preview

@@ -12,8 +12,17 @@ export function createApplication(
   release: string,
   appSecrets: Record<string, string>,
 ) {
-  const directory = vercel.getProjectDirectoryOutput({ path: sourceDirectory });
+  // Relative paths keep ancestor workspace names out of the provider's ignore matching.
+  const sourcePath = path.relative(
+    process.cwd(),
+    path.resolve(sourceDirectory),
+  );
+  const directory = vercel.getProjectDirectoryOutput({ path: sourcePath });
   const files = directory.files.apply((entries) => {
+    if (Object.keys(entries).length === 0)
+      throw new Error(
+        "Bound source contains no deployable files; check .vercelignore",
+      );
     for (const file of Object.keys(entries)) {
       const parts = file.replaceAll("\\", "/").split("/");
       if (
@@ -44,7 +53,7 @@ export function createApplication(
       projectId,
       teamId,
       files,
-      pathPrefix: path.resolve(sourceDirectory),
+      pathPrefix: directory.path,
       production: false,
       deleteOnDestroy: true,
       environment: pulumi.secret({
