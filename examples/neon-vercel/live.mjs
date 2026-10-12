@@ -39,8 +39,8 @@ const program = path.join(workspace, "infra/environment");
 const requireApp = createRequire(path.join(app, "package.json"));
 const { Client } = requireApp("pg");
 const branch =
-  process.env.PREMISE_PREVIEW_BRANCH ??
-  process.env.GITHUB_HEAD_REF ??
+  process.env.PREMISE_PREVIEW_BRANCH ||
+  process.env.GITHUB_HEAD_REF ||
   process.env.GITHUB_REF_NAME;
 if (!branch || branch === "main")
   throw new Error("Use a feature-branch preview identity");
