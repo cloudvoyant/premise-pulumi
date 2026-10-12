@@ -33,13 +33,15 @@ npm install --ignore-scripts
 PREMISE_BIN=/path/to/pm node scaffold.mjs /path/to/client
 ```
 
+The example pins TanStack Start 1.168.60 and its matching router dependency to include the [server-function security fix](https://tanstack.com/blog/tanstack-start-security-update-cve-2026-102989).
+
 The scaffold reads non-secret project and backend IDs from the environment. It does not require Neon or Vercel administration tokens. The template uses Pulumi's parameterized published Neon provider and the published Vercel provider. `pulumi install` generates the Neon SDK from pinned package metadata. Generated SDK files are not source-controlled.
 
 ## Live tests
 
-This branch requires Premise `v0.5.0-rc.211` or a later release with the same infrastructure, deployment and secret interfaces. The matching Premise change is [PR #20](https://github.com/cloudvoyant/premise/pull/20); merge it before these templates.
+This branch requires Premise `v0.5.0-rc.221` or a later release with the same infrastructure, deployment and secret interfaces. The matching Premise change is [PR #20](https://github.com/cloudvoyant/premise/pull/20); merge it before these templates.
 
-The hosted workflow requires `PREMISE_RC_VERSION` to identify a published Premise RC. It checks out that tag's action and installs that release's binary. Configure GCP workload identity and CI-only Neon/Vercel credentials before running it.
+The hosted workflow requires `PREMISE_RC_VERSION` to identify a published Premise RC. It checks out that tag's action and installs that release's binary. The harness executes the action's published deployment-step scripts, including remote record restore and persistence. Configure GCP workload identity and CI-only Neon/Vercel credentials before running it.
 
 | Test                                          | Required evidence                                                                                                              |
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
@@ -51,7 +53,7 @@ Configure these GitHub repository values before a feature-branch push:
 
 | Setting                                                                   | GitHub storage | Purpose                                                                        |
 | ------------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------ |
-| `PREMISE_RC_VERSION`                                                      | Variable       | Exact verified RC tag; currently `v0.5.0-rc.211`.                              |
+| `PREMISE_RC_VERSION`                                                      | Variable       | Exact verified RC tag; currently `v0.5.0-rc.221`.                              |
 | `GCP_PROJECT_ID`, `GCP_SERVICE_ACCOUNT`, `GCP_WORKLOAD_IDENTITY_PROVIDER` | Variables      | Workload identity for the dedicated GCP project.                               |
 | `PULUMI_BACKEND_URL`                                                      | Variable       | Existing GCS state backend.                                                    |
 | `NEON_PROJECT_ID`, `NEON_PARENT_BRANCH_ID`, `NEON_REGION_ID`              | Variables      | Existing dedicated Neon project and parent branch.                             |
@@ -68,7 +70,7 @@ Neon/Vercel administration operations run in CI. The GCS and application-secret 
 
 ## Cleanup and recovery
 
-Tests create preview resources inside dedicated test projects. They preserve project containers and the remote state backend. They delete retained Vercel deployments by exact test-owned IDs.
+Tests create preview resources inside dedicated test projects. They preserve project containers and the remote state backend. They delete retained Vercel deployments by exact test-owned IDs. After resource cleanup, they archive non-secret recovery records by CI run and clear active preview records. A later test must not restore an app from a destroyed preview.
 
 Keep release records and pinned artifacts in durable storage. The tests restore records after removing their local copy. If cleanup fails, report the remaining resources before retrying. If a deployment stops unexpectedly, inspect its stack, migration history and recovery records.
 

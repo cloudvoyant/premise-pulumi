@@ -72,9 +72,13 @@ def exercise():
             assert content == "premise-gcs-e2e", "Bound artifact did not reach GCS"
             run(client, PM, "infra", "apply", *selection, "--yes")
             second = Path(temporary) / "fresh-client"
-            shutil.copytree(client, second, ignore=shutil.ignore_patterns(".git", ".pulumi"))
+            def source_only(directory, names):
+                return [name for name in names if name in {".git", ".pulumi"}
+                        or (name.startswith("Pulumi.") and name.endswith(".yaml") and name != "Pulumi.yaml")]
+            shutil.copytree(client, second, ignore=source_only)
             run(second, "mise", "trust", str(second / "mise.toml"))
             run(second, "mise", "trust", str(second / "infra/bucket/mise.toml"))
+            run(second, PM, "infra", "init", *selection)
             assert json.loads(run(second, PM, "infra", "output", *selection))["bucketName"] == bucket
             run(second, PM, "infra", "plan", *selection)
             print("GCS preview/apply/artifact/reapply/fresh-directory state assertions passed")

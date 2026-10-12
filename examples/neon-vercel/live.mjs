@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import assert from "node:assert/strict";
+import YAML from "yaml";
 import { scaffold, workspace, pm, command } from "./scaffold.mjs";
 
 if (process.env.CI !== "true")
@@ -53,6 +54,19 @@ const evidence = {
   branch,
   assertions: [],
 };
+const actionPath = process.env.PREMISE_ACTION_PATH;
+if (!actionPath)
+  throw new Error(
+    "PREMISE_ACTION_PATH must identify the checked-out published action",
+  );
+const actionSteps = YAML.parse(
+  fs.readFileSync(path.join(actionPath, "action.yml"), "utf8"),
+).runs.steps;
+evidence.action_source = capture(
+  "git",
+  ["rev-parse", "HEAD"],
+  actionPath,
+).trim();
 const retainedDeployments = new Set();
 const branches = new Set();
 const aliases = new Set();
@@ -115,34 +129,23 @@ function records() {
   stack = plan.stack;
   return {
     directory: plan.records_directory,
-    remote: `${plan.backend_url}/premise-releases/${plan.stack}`,
+    remote: `${plan.backend_url}/.premise-releases/${plan.program}/${plan.stack}`,
+    archive: `${plan.backend_url}/.premise-release-history/${process.env.GITHUB_RUN_ID}/${plan.program}/${plan.stack}`,
   };
 }
-function syncRecords(direction) {
-  const state = records();
-  fs.mkdirSync(state.directory, { recursive: true });
-  if (direction === "pull") {
-    const listing = spawnSync(
-      "gcloud",
-      ["storage", "ls", state.remote + "/**"],
-      { cwd: workspace, encoding: "utf8" },
+function runActionStep(name, environment) {
+  const step = actionSteps.find((step) => step.name === name);
+  if (!step?.run || step.run.includes("${{"))
+    throw new Error(
+      `Published deployment step ${name} is missing or has an unsupported inline expression`,
     );
-    if (listing.status !== 0) {
-      if (
-        /No URLs matched|not found|matched no|does not exist/i.test(
-          listing.stderr,
-        )
-      )
-        return;
-      throw new Error("Recovery record storage could not be read");
-    }
-  }
-  const paths =
-    direction === "pull"
-      ? [state.remote, state.directory]
-      : [state.directory, state.remote];
-  command("gcloud", ["storage", "rsync", ...paths, "--recursive"], workspace);
+  return spawnSync("bash", ["-c", step.run], {
+    cwd: workspace,
+    env: { ...process.env, ...environment },
+    stdio: "inherit",
+  }).status;
 }
+
 function runRelease(release, fault = {}) {
   deploymentStarted = true;
   if (
@@ -151,25 +154,41 @@ function runRelease(release, fault = {}) {
     )
   )
     cleanupScopes.push([...scope]);
-  syncRecords("pull");
-  const result = spawnSync(
-    pm,
-    [
-      "deploy",
-      "run",
-      ...scope,
-      "--release",
-      release,
-      "--artifact",
-      `web=${sourceIdentity()}`,
-    ],
-    {
-      cwd: workspace,
-      env: { ...process.env, ...fault },
-      stdio: "inherit",
-    },
-  );
-  syncRecords("push");
+  const environmentFile = path.join(workspace, ".premise/action-environment");
+  fs.mkdirSync(path.dirname(environmentFile), { recursive: true });
+  fs.writeFileSync(environmentFile, "", { mode: 0o600 });
+  const environment = {
+    ...fault,
+    COMMAND: "deploy",
+    FLOW: "on-commit",
+    RELEASE_MODE: "none",
+    DEPLOY_ENVIRONMENT: scope[1],
+    PREVIEW_BRANCH: scope[3],
+    INFRA_BACKEND: "remote",
+    RECORDS_URL: "",
+    DEPLOY_REVISION: release,
+    DEPLOY_ARTIFACT: `web=${sourceIdentity()}`,
+    GITHUB_ENV: environmentFile,
+  };
+  if (runActionStep("Restore deployment recovery records", environment) !== 0)
+    throw new Error("Published action could not restore recovery records");
+  for (const line of fs
+    .readFileSync(environmentFile, "utf8")
+    .trim()
+    .split("\n")) {
+    const separator = line.indexOf("=");
+    const key = line.slice(0, separator);
+    if (!["PM_RECORDS_DIRECTORY", "PM_RECORDS_URL"].includes(key))
+      throw new Error(
+        "Published action wrote an unexpected deployment environment key",
+      );
+    environment[key] = line.slice(separator + 1);
+  }
+  const result = {
+    status: runActionStep("Run Premise operation", environment),
+  };
+  if (runActionStep("Persist deployment recovery records", environment) !== 0)
+    throw new Error("Published action could not persist recovery records");
   const state = records();
   const run = JSON.parse(
     fs.readFileSync(path.join(state.directory, "last-run.json")),
@@ -524,9 +543,38 @@ try {
         assert.equal(check.status, 404, "preview database branch must be gone");
       });
     }
+    if (cleanupErrors.length === 0) {
+      for (const cleanupScope of cleanupScopes) {
+        scope = cleanupScope;
+        await attempt(async () => {
+          const state = records();
+          for (const filename of ["last-success.json", "last-run.json"]) {
+            const local = path.join(state.directory, filename);
+            if (!fs.existsSync(local)) continue;
+            command(
+              "gcloud",
+              ["storage", "cp", local, `${state.archive}/${filename}`],
+              workspace,
+            );
+            const removal = spawnSync(
+              "gcloud",
+              ["storage", "rm", `${state.remote}/${filename}`],
+              { encoding: "utf8" },
+            );
+            if (
+              removal.status !== 0 &&
+              !/matched no objects|No URLs matched/i.test(removal.stderr)
+            )
+              throw new Error(
+                "Could not clear active test-preview recovery records",
+              );
+          }
+        });
+      }
+    }
     if (cleanupErrors.length === 0)
       evidence.assertions.push(
-        "Exact test-owned Neon branches, aliases and retained Vercel deployments removed; containers preserved",
+        "Exact test-owned Neon branches, aliases and retained Vercel deployments removed; recovery records archived and active references cleared; containers preserved",
       );
   }
   evidence.cleanup_succeeded = cleanupErrors.length === 0;

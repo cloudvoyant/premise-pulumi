@@ -94,6 +94,8 @@ export function scaffold() {
   const packageFile = path.join(app, "package.json");
   const pkg = JSON.parse(fs.readFileSync(packageFile));
   Object.assign(pkg.dependencies, {
+    "@tanstack/react-start": "1.168.60",
+    "@tanstack/react-router": "1.170.41",
     "@neondatabase/serverless": "1.2.0",
     "drizzle-orm": "0.45.4",
     pg: "8.23.1",
