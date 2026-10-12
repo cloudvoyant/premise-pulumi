@@ -1,0 +1,64 @@
+workspace:
+  name: premise-pulumi
+  kind: template-registry
+  schema-version: "0.2"
+  providers:
+    ci: github
+    tools: mise
+    tasks: mise
+    infra: pulumi
+    versioning: svu
+  projects: []
+template_registry:
+  workspace_files: []
+  templates:
+    - name: gcs-bucket
+      kind: infra
+      path: templates/gcs-bucket
+      version: 0.1.0
+      infra:
+        role: program
+        scope: environment
+      questions:
+        - prompt: Infrastructure project name
+          type: string
+          populate: name
+      substitutions:
+        premise-bucket: name
+    - name: environment
+      kind: infra
+      path: templates/environment
+      version: 0.1.0
+      infra:
+        role: program
+        scope: environment
+      questions:
+        - prompt: Project name
+          type: string
+          populate: name
+      substitutions:
+        premise-environment: name
+    - name: neon-db
+      kind: infra-component
+      path: templates/neon-db
+      version: 0.1.0
+      infra:
+        role: component
+      questions:
+        - prompt: Project name
+          type: string
+          populate: name
+      substitutions:
+        premise-neon-db: name
+    - name: vercel-app
+      kind: infra-component
+      path: templates/vercel-app
+      version: 0.1.0
+      infra:
+        role: component
+      questions:
+        - prompt: Project name
+          type: string
+          populate: name
+      substitutions:
+        premise-vercel-app: name

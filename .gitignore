@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+node_modules/
+bin/
+.pulumi/
+.pulumi-state/
+test-results/
+coverage/
+
+__pycache__/
+sdks/
+.premise-releases/
