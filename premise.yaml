@@ -25,16 +25,40 @@ template_registry:
           populate: name
       substitutions:
         premise-bucket: name
-    - name: neon-vercel
+    - name: environment
       kind: infra
-      path: templates/neon-vercel
+      path: templates/environment
       version: 0.1.0
       infra:
         role: program
         scope: environment
       questions:
-        - prompt: Infrastructure program name
+        - prompt: Project name
           type: string
           populate: name
       substitutions:
-        premise-web: name
+        premise-environment: name
+    - name: neon-db
+      kind: infra-component
+      path: templates/neon-db
+      version: 0.1.0
+      infra:
+        role: component
+      questions:
+        - prompt: Project name
+          type: string
+          populate: name
+      substitutions:
+        premise-neon-db: name
+    - name: vercel-app
+      kind: infra-component
+      path: templates/vercel-app
+      version: 0.1.0
+      infra:
+        role: component
+      questions:
+        - prompt: Project name
+          type: string
+          populate: name
+      substitutions:
+        premise-vercel-app: name

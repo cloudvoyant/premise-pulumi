@@ -1,0 +1,3 @@
+name: premise-environment
+runtime: go
+description: Client-owned environment program composing project components

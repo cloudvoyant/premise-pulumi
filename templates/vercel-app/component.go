@@ -1,0 +1,105 @@
+package vercelapp
+
+import (
+	"fmt"
+	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+	"github.com/pulumiverse/pulumi-vercel/sdk/v5/go/vercel"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+// Application deploys one bound project and gives it a stable environment alias.
+type Application struct {
+	pulumi.ResourceState
+	Deployment *vercel.Deployment
+	Alias      *vercel.Alias
+}
+
+// Args carries project-owned source and runtime inputs.
+type Args struct {
+	ProjectID, TeamID, Alias, Source, Release string
+	Environment                               pulumi.StringMap
+}
+
+// Public API -----------------------------------------------------------------
+
+// New deploys an application using the published Vercel provider.
+func New(ctx *pulumi.Context, name string, args Args, opts ...pulumi.ResourceOption) (*Application, error) {
+	application := &Application{}
+	if err := ctx.RegisterComponentResource("premise:vercel:Application", name, application, opts...); err != nil {
+		return nil, err
+	}
+	source, err := relativeSource(args.Source)
+	if err != nil {
+		return nil, err
+	}
+	directory, err := vercel.GetProjectDirectory(ctx, &vercel.GetProjectDirectoryArgs{Path: source}, pulumi.Parent(application))
+	if err != nil {
+		return nil, err
+	}
+	if err := validateFiles(directory.Files); err != nil {
+		return nil, err
+	}
+	environment := pulumi.StringMap{}
+	for key, value := range args.Environment {
+		environment[key] = value
+	}
+	environment["PREMISE_RELEASE"] = pulumi.String(args.Release)
+	deployment, err := vercel.NewDeployment(ctx, name+"-deployment", &vercel.DeploymentArgs{
+		ProjectId: pulumi.String(args.ProjectID), TeamId: pulumi.String(args.TeamID), Files: pulumi.ToStringMap(directory.Files), PathPrefix: pulumi.String(directory.Path), Production: pulumi.Bool(false), DeleteOnDestroy: pulumi.Bool(true),
+		Environment:     pulumi.ToSecret(environment).(pulumi.StringMapOutput),
+		Meta:            pulumi.StringMap{"premiseRelease": pulumi.String(args.Release), "premiseStack": pulumi.String(ctx.Stack())},
+		ProjectSettings: &vercel.DeploymentProjectSettingsArgs{Framework: pulumi.String("tanstack-start"), BuildCommand: pulumi.String("bun run build"), InstallCommand: pulumi.String("bun install")},
+	}, pulumi.Parent(application), pulumi.RetainOnDelete(true))
+	if err != nil {
+		return nil, err
+	}
+	alias, err := vercel.NewAlias(ctx, name+"-alias", &vercel.AliasArgs{TeamId: pulumi.String(args.TeamID), Alias: pulumi.String(args.Alias), DeploymentId: deployment.ID()}, pulumi.Parent(application))
+	if err != nil {
+		return nil, err
+	}
+	application.Deployment, application.Alias = deployment, alias
+	if err := ctx.RegisterResourceOutputs(application, pulumi.Map{"deploymentId": deployment.ID(), "alias": alias.Alias}); err != nil {
+		return nil, err
+	}
+	return application, nil
+}
+
+// Private helpers ------------------------------------------------------------
+
+func relativeSource(source string) (string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	absolute, err := filepath.Abs(source)
+	if err != nil {
+		return "", err
+	}
+	// The environment program lives at infra/environment; sources stay in its workspace.
+	root := filepath.Clean(filepath.Join(cwd, "../.."))
+	relative, err := filepath.Rel(root, absolute)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("bound application source must stay inside workspace")
+	}
+	return filepath.Rel(cwd, absolute)
+}
+
+func validateFiles(files map[string]string) error {
+	if len(files) == 0 {
+		return fmt.Errorf("bound source has no deployable files; check .vercelignore")
+	}
+	for file := range files {
+		for _, part := range strings.Split(filepath.ToSlash(file), "/") {
+			if strings.HasPrefix(part, ".env") {
+				return fmt.Errorf("source contains secret file; fix .vercelignore")
+			}
+			switch part {
+			case ".pulumi", ".pulumi-state", ".premise", "node_modules", "test-results", ".git", ".npmrc", "fnox.toml":
+				return fmt.Errorf("source contains secret/state/dependency file; fix .vercelignore")
+			}
+		}
+	}
+	return nil
+}

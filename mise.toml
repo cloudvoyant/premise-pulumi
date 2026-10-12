@@ -2,20 +2,20 @@
 go = "1.25"
 node = "22"
 bun = "1.4.2"
-pulumi = "3.200.0"
+pulumi = "3.268.0"
 fnox = "1.39.0"
 
 [tasks.test]
-run = "cd templates/gcs-bucket && go test ./..."
+run = "for project in gcs-bucket environment neon-db vercel-app; do (cd templates/$project && mise trust mise.toml && mise run install && go test ./...) || exit; done"
 
 [tasks.lint]
-run = "cd templates/gcs-bucket && go vet ./..."
+run = "for project in gcs-bucket environment neon-db vercel-app; do (cd templates/$project && go vet ./...) || exit; done"
 
 [tasks.format]
-run = "gofmt -w templates/gcs-bucket/*.go"
+run = "gofmt -w templates/*/*.go"
 
 [tasks."format:check"]
-run = 'test -z "$(gofmt -l templates/gcs-bucket/*.go)"'
+run = 'test -z "$(gofmt -l templates/*/*.go)"'
 
 [tasks."e2e:gcs"]
 run = "python3 e2e/gcs.py"
