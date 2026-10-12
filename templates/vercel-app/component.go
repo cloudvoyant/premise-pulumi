@@ -2,11 +2,12 @@ package vercelapp
 
 import (
 	"fmt"
-	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
-	"github.com/pulumiverse/pulumi-vercel/sdk/v5/go/vercel"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+	"github.com/pulumiverse/pulumi-vercel/sdk/v5/go/vercel"
 )
 
 // Application deploys one bound project and gives it a stable environment alias.

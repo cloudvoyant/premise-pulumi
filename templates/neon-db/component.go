@@ -1,9 +1,10 @@
 package neondb
 
 import (
+	"net/url"
+
 	"github.com/pulumi/pulumi-terraform-provider/sdks/go/neon/neon"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
-	"net/url"
 )
 
 // Database is one project's branch, compute endpoint, role, and database.
