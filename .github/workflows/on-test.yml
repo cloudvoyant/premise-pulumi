@@ -26,6 +26,14 @@ jobs:
       - run: mise run test
       - run: mise run lint
       - run: mise run format:check
+      - name: Verify Neon and Vercel provider composition
+        working-directory: templates/neon-vercel
+        run: |
+          mise trust mise.toml
+          mise run install
+          mise run test
+          mise run lint
+          mise run format:check
 
   live:
     needs: verify
