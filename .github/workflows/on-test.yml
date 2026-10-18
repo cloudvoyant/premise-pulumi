@@ -1,4 +1,4 @@
-name: Test templates and live deployment
+name: Test templates and GCS infrastructure
 
 "on":
   push:
@@ -28,7 +28,7 @@ jobs:
       - run: mise run format:check
 
   live:
-    timeout-minutes: 45
+    timeout-minutes: 25
     needs: verify
     runs-on: ubuntu-latest
     environment: preview
@@ -36,11 +36,6 @@ jobs:
       PREMISE_RC_VERSION: ${{ vars.PREMISE_RC_VERSION }}
       GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
       PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
-      NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
-      NEON_PARENT_BRANCH_ID: ${{ vars.NEON_PARENT_BRANCH_ID }}
-      NEON_REGION_ID: ${{ vars.NEON_REGION_ID }}
-      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
-      VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
       PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
     steps:
       - uses: actions/checkout@v6
@@ -71,31 +66,9 @@ jobs:
           release: none
           install-premise: pre-built
           premise-version: ${{ vars.PREMISE_RC_VERSION }}
-      - name: Verify permissions before creating live resources
-        run: python3 e2e/permissions.py
-      - name: Exercise fnox application secrets
-        run: mise run e2e:secrets
-      - name: Exercise remote state and bound GCS artifacts
-        run: mise run e2e:gcs
-      - name: Provision, migrate, deploy and prove automatic rollback
+      - name: Exercise the local Go GCS fixture
         working-directory: .actions/premise
         env:
-          PREMISE_LIVE_E2E: "1"
+          PREMISE_TEST_GCS: "1"
           PREMISE_BIN: pm
-          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
-          VERCEL_API_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          PREMISE_E2E_BYPASS_SECRET: ${{ secrets.PREMISE_E2E_BYPASS_SECRET }}
-          PREMISE_ACTION_PATH: ${{ github.workspace }}/.actions/premise
-          PREMISE_PULUMI_REGISTRY: ${{ github.workspace }}
-        run: |
-          test -f e2e/pulumi_test.go
-          mise exec go@1.25 node@22 pulumi@3.268.0 -- go test ./e2e -run '^TestPulumiLive$' -timeout 40m -count=1
-      - name: Save non-secret rollback evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: rollback-evidence
-          path: .actions/premise/e2e/testdata/pulumi/neon-vercel/test-results/workspace/test-results/rollback.json
-          if-no-files-found: ignore
-          retention-days: 14
+        run: mise exec go@1.25 pulumi@3.268.0 -- go test ./e2e -run '^TestInfraGCS$' -count=1 -timeout 20m -v

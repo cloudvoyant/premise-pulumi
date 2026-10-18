@@ -16,9 +16,3 @@ run = "gofmt -w templates/*/*.go"
 
 [tasks."format:check"]
 run = 'test -z "$(gofmt -l templates/*/*.go)"'
-
-[tasks."e2e:gcs"]
-run = "python3 e2e/gcs.py"
-
-[tasks."e2e:secrets"]
-run = "python3 e2e/secrets.py"

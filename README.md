@@ -40,48 +40,37 @@ Vercel template can be rendered twice or instantiated twice. Bind each app with
 `pm infra bind`, then use `pm infra init/plan/apply`. Pulumi owns provider settings;
 `PULUMI_BACKEND_URL` can come from Mise/fnox. Named manifest backends are optional.
 
-The embedded client fixture in Premise shows the complete Go composition and
-optional migration/recovery tasks. Its live test uses the parameterized published
-Neon provider and the published Vercel provider. Mise generates the Go Neon SDK
-from pinned package metadata; generated SDK files are not source-controlled.
-There is no product setup script or `examples` directory in this registry.
+## Validation
 
-## Live tests
+`mise run test` runs Go component mocks; `mise run lint` runs Go static analysis.
+The component tests check independent Neon databases and Vercel source/alias
+bindings without creating cloud resources.
 
-This branch requires Premise `v0.5.0-rc.231` or a later release with the same infrastructure, deployment and secret interfaces. The matching Premise change is [PR #20](https://github.com/cloudvoyant/premise/pull/20); merge it before these templates.
+The live workflow checks out the exact published Premise RC and runs its
+`TestInfraGCS` Go smoke test. Premise owns the small local template registry and
+dummy client fixture. The test generates infrastructure, binds an artifact,
+previews/applies a private GCS bucket, checks its uploaded file, reloads remote
+state, and destroys the bucket. There is no JavaScript/Python E2E runner.
 
-The hosted workflow requires `PREMISE_RC_VERSION` to identify a published Premise RC. It checks out that tag's action and installs that release's binary. The harness executes the action's published deployment-step scripts, including remote record restore and persistence. Configure GCP workload identity and CI-only Neon/Vercel credentials before running it.
+Configure these GitHub values for the protected `preview` environment:
 
-| Test                                       | Required evidence                                                                                                              |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| `mise run e2e:secrets`                     | fnox/Mise resolves a real application secret into a private env file and a child process. Administration credentials stay out. |
-| `mise run e2e:gcs`                         | A generated program uploads a bound object, reuses remote state, reapplies and cleans up its bucket.                           |
-| `TestPulumiLive` in the Premise repository | SQL records prove migration execution. HTTP and provider identities prove app rollout and automatic rollback.                  |
+| Setting                                                 | Storage   | Purpose                                                       |
+| ------------------------------------------------------- | --------- | ------------------------------------------------------------- |
+| `PREMISE_RC_VERSION`                                    | Variable  | Published Premise RC containing `TestInfraGCS`.               |
+| `GCP_PROJECT_ID`                                        | Variable  | Dedicated test project with the Storage API enabled.          |
+| `GCP_SERVICE_ACCOUNT`, `GCP_WORKLOAD_IDENTITY_PROVIDER` | Variables | Workload identity with test bucket/object and backend access. |
+| `PULUMI_BACKEND_URL`                                    | Variable  | Existing GCS state bucket/prefix.                             |
+| `PULUMI_CONFIG_PASSPHRASE`                              | CI secret | Encryption credential for test stack state.                   |
 
-Configure these GitHub repository values before a feature-branch push:
+The smoke test uses only GCP OAuth/workload identity. It requires no Secret
+Manager or Cloud Resource Manager permission check, Neon credentials, or Vercel
+credentials. It creates a unique preview stack and always attempts cleanup,
+including after a failed assertion. The state bucket and project remain.
 
-| Setting                                                                   | GitHub storage | Purpose                                                                        |
-| ------------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------ |
-| `PREMISE_RC_VERSION`                                                      | Variable       | Exact verified RC tag; currently `v0.5.0-rc.231`.                              |
-| `GCP_PROJECT_ID`, `GCP_SERVICE_ACCOUNT`, `GCP_WORKLOAD_IDENTITY_PROVIDER` | Variables      | Workload identity for the dedicated GCP project.                               |
-| `PULUMI_BACKEND_URL`                                                      | Variable       | Existing GCS state backend.                                                    |
-| `NEON_PROJECT_ID`, `NEON_PARENT_BRANCH_ID`, `NEON_REGION_ID`              | Variables      | Existing dedicated Neon project and parent branch.                             |
-| `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID`                                     | Variables      | Existing dedicated Vercel project and team.                                    |
-| `NEON_API_KEY`, `VERCEL_TOKEN`                                            | CI secrets     | Provider administration; supplied only to the live deployment step.            |
-| `PULUMI_CONFIG_PASSPHRASE`                                                | CI secret      | State encryption; retain a private recovery copy.                              |
-| `PREMISE_E2E_BYPASS_SECRET`                                               | CI secret      | Automation access when the dedicated Vercel project has deployment protection. |
-
-Enable the GCP Storage, Secret Manager, and Cloud Resource Manager APIs. Give workload identity access to the state bucket, test bucket creation and the dedicated `premise-e2e-app-marker` secret, plus Secret Manager creation/deletion for branch-owned fixture secrets. The marker is an application value in Secret Manager, not a copied CI secret. Configure the GitHub `preview` environment to permit the test feature branches. Keep Vercel deployment protection enabled and create a project-scoped automation bypass for HTTP tests.
-
-The embedded client fixture in Premise generates these Go components with `pm g`, renders the Vercel template twice for two apps, and composes them with ordinary Go imports. There is no generated JavaScript deploy script. The application test deploys A, migrates and deploys B, then deliberately fails a health check. Premise restores A automatically. The test queries Neon and the serving app to make sure that data survives. A separate fault exercises failed recovery.
-
-Neon/Vercel administration operations run in CI. The GCS and application-secret tests can run locally with authorized GCP credentials. A local CLI build does not satisfy the published-RC validation gate.
-
-## Cleanup and recovery
-
-Tests create preview resources inside dedicated test projects. They preserve project containers and the remote state backend. They delete retained Vercel deployments by exact test-owned IDs. After resource cleanup, they archive non-secret recovery records by CI run and clear active preview records. A later test must not restore an app from a destroyed preview.
-
-Keep release records and pinned artifacts in durable storage. The tests restore records after removing their local copy. If cleanup fails, report the remaining resources before retrying. If a deployment stops unexpectedly, inspect its stack, migration history and recovery records.
+Premise's unit tests cover migration ordering and recovery behavior with fake
+subprocesses. This GCS test validates infrastructure commands against real cloud
+resources; it does not claim live database migration or application rollback
+coverage.
 
 ## Documentation
 
