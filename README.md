@@ -62,6 +62,11 @@ Configure these GitHub values for the protected `preview` environment:
 | `PULUMI_BACKEND_URL`                                    | Variable  | Existing GCS state bucket/prefix.                             |
 | `PULUMI_CONFIG_PASSPHRASE`                              | CI secret | Encryption credential for test stack state.                   |
 
+Mise installs the gcloud version pinned in `mise.toml`. The GitHub-specific
+authentication step only exchanges the runner identity for standard GCP credential
+files. See Premise's [provider setup](https://github.com/cloudvoyant/premise/blob/v0.5.0-rc.238/docs/providers/README.md)
+for the same contract on other CI systems.
+
 The smoke test uses only GCP OAuth/workload identity. It requires no Secret
 Manager or Cloud Resource Manager permission check, Neon credentials, or Vercel
 credentials. It creates a unique preview stack and always attempts cleanup,

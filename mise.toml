@@ -3,6 +3,7 @@ go = "1.25"
 node = "22"
 bun = "1.4.2"
 pulumi = "3.268.0"
+gcloud = "559.0.0"
 fnox = "1.39.0"
 
 [tasks.test]
