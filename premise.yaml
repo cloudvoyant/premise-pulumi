@@ -8,6 +8,8 @@ workspace:
     tasks: mise
     infra: pulumi
     versioning: svu
+  infra:
+    providers: [gcp]
   projects: []
 template_registry:
   workspace_files: []

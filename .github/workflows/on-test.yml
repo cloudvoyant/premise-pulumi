@@ -54,10 +54,6 @@ jobs:
           ref: ${{ vars.PREMISE_RC_VERSION }}
           path: .actions/premise
           persist-credentials: false
-      - uses: google-github-actions/auth@v3
-        with:
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
       - name: Install the published RC binary with its matching action
         uses: ./.actions/premise
         with:
@@ -65,6 +61,11 @@ jobs:
           release: none
           install-premise: pre-built
           premise-version: ${{ vars.PREMISE_RC_VERSION }}
+      - name: Authenticate through the Premise GCP provider
+        env:
+          GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+        run: pm infra auth --ci --env-file "$GITHUB_ENV"
       - name: Exercise the local Go GCS fixture
         working-directory: .actions/premise
         env:

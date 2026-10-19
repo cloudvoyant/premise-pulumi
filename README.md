@@ -61,9 +61,7 @@ Configure these GitHub values for the protected `preview` environment:
 | `GCP_SERVICE_ACCOUNT`, `GCP_WORKLOAD_IDENTITY_PROVIDER` | Variables | Workload identity with test bucket/object and backend access. |
 | `PULUMI_BACKEND_URL`                                    | Variable  | Existing GCS state bucket/prefix.                             |
 
-Mise installs the gcloud version pinned in `mise.toml`. The GitHub-specific
-authentication step only exchanges the runner identity for standard GCP credential
-files. See Premise's [provider setup](https://github.com/cloudvoyant/premise/blob/v0.5.0-rc.240/docs/providers/README.md)
+Mise installs the gcloud version pinned in `mise.toml`. The live job runs `pm infra auth --ci` to exchange the runner identity for standard GCP credential files. It does not use a Google auth action. See Premise's [provider setup](https://github.com/cloudvoyant/premise/blob/v0.5.0-rc.244/docs/providers/README.md)
 for the same contract on other CI systems.
 
 The smoke test uses an empty Pulumi passphrase and relies on backend access
@@ -82,3 +80,13 @@ coverage.
 ## Documentation
 
 Read Premise's [secret management guide](https://github.com/cloudvoyant/premise/blob/feature/pulumi/docs/secret-management.md) and [infrastructure guide](https://github.com/cloudvoyant/premise/blob/feature/pulumi/docs/modules/infrastructure.md). The tandem PRs must link the verified RC and hosted test runs. Replace feature-branch links with stable documentation after merge.
+
+## Provider guides
+
+GCP, Neon, and Vercel have separate setup guides and separate template contracts:
+
+- [GCP](docs/providers/gcp.md) configures the live bucket test.
+- [Neon](docs/providers/neon.md) configures `neon-db` administration access.
+- [Vercel](docs/providers/vercel.md) configures `vercel-app` administration access.
+
+Each guide uses the same Tools, Local authentication, CI authentication, Variables, Permissions, and References sections. Combining their components in a client program does not combine their credentials or providers. Fnox remains local. CI receives application values from CI secrets.
