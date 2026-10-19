@@ -36,7 +36,7 @@ jobs:
       PREMISE_RC_VERSION: ${{ vars.PREMISE_RC_VERSION }}
       GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
       PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
-      PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+      PULUMI_CONFIG_PASSPHRASE: ""
     steps:
       - uses: actions/checkout@v6
         with:
